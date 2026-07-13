@@ -73,6 +73,7 @@ def test_single_modality_selection_writes_canonical_image_table(tmp_path: Path) 
 def test_release_audit_ignores_transient_cache_directories() -> None:
     audit = load_module("tools/audit_release.py", "public_release_audit")
     relative_paths = {path.relative_to(ROOT).as_posix() for path in audit.release_files()}
+    assert not any(path.startswith(".git/") for path in relative_paths)
     assert not any(path.startswith(".pytest_cache/") for path in relative_paths)
     assert not any("/__pycache__/" in f"/{path}/" for path in relative_paths)
 

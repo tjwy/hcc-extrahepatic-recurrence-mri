@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "RELEASE_FILE_MANIFEST.csv"
 AUDITOR = Path(__file__).resolve()
-TRANSIENT_DIRS = {"__pycache__", ".pytest_cache", ".mplconfig"}
+TRANSIENT_DIRS = {".git", "__pycache__", ".pytest_cache", ".mplconfig"}
 TEXT_SUFFIXES = {".py", ".R", ".md", ".txt", ".csv", ".yaml", ".yml", ".env"}
 FORBIDDEN_SUFFIXES = {
     ".dcm", ".nii", ".gz", ".xlsx", ".xls", ".npy", ".npz",
