@@ -1,0 +1,28 @@
+name: hcc-dm-mri
+channels:
+  - conda-forge
+  - pytorch
+  - nvidia
+dependencies:
+  - python=3.10.16
+  - numpy=1.23.5
+  - pandas=2.0.3
+  - scipy=1.10.0
+  - scikit-learn=1.7.2
+  - scikit-survival=0.25.0
+  - lifelines=0.30.0
+  - matplotlib=3.10.7
+  - nibabel=5.3.2
+  - simpleitk=2.5.3
+  - openpyxl=3.1.5
+  - tqdm=4.67.1
+  - pytest=9.0.3
+  - tabulate=0.9.0
+  - pytorch=2.6.0
+  - torchvision=0.21.0
+  - pytorch-cuda=12.4
+  - r-base=4.3
+  - r-cmprsk
+  - pip
+  - pip:
+      - pyradiomics==3.0.1

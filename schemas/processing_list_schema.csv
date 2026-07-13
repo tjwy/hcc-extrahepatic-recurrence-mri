@@ -1,0 +1,3 @@
+column,type,description
+MRI_id,string,de-identified case identifier
+Path,string,path to a directory containing AP/PVP/DP images and masks

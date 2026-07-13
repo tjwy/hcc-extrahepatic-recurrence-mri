@@ -1,0 +1,16 @@
+column,type,unit_or_coding,required_for
+MRI_id,string,de-identified join key,all stages
+Time_to_DM_Months,float,months from resection to distant metastasis or censoring,survival modeling
+Distant_Metastasis,integer,0=no documented distant metastasis; 1=distant metastasis,survival modeling
+Age,float,years,CRM
+Sex,integer,study data dictionary coding required,CRM
+Child_Pugh_Score,float,legacy code-facing field name; manuscript reports Child-Pugh class,CRM
+AFP,float,ng/mL,CRM
+BCLC,float,study data dictionary coding required,CRM
+Tumor_Size,float,cm,CRM
+Tumor_Number,float,number of tumors or study coding,CRM
+Cohort,string,development or external source label,subgroup analysis
+RFS_Months,float,months,secondary analysis
+RFS_Status,integer,0=censored; 1=recurrence,secondary analysis
+OS_Months,float,months,secondary and competing-event analysis
+OS_Status,integer,0=alive/censored; 1=death,secondary and competing-event analysis
