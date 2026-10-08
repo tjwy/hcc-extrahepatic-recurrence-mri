@@ -6,16 +6,16 @@ setting:
   # Normalize intensity to reduce inter-patient variability (crucial for MRI)
   normalize: true
   normalizeScale: 100  # Resulting range approx -300 to 300
-  
+
   # Discretization
   binWidth: 5  # With scale=100, this yields ~60-100 bins
-  
+
   # Resampling
-  # Input images are assumed to be preprocessed/resampled. 
+  # Input images are assumed to be preprocessed/resampled.
   # If not, uncomment the line below:
   # resampledPixelSpacing: [1, 1, 1]
   interpolator: 'sitkBSpline'
-  
+
   # Misc
   geometryTolerance: 1e-6
 

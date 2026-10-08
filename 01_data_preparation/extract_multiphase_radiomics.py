@@ -24,7 +24,7 @@ Path(LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
 # Setup Logging
 # Suppress PyRadiomics info/warnings to console
 radiomics.logger.setLevel(logging.ERROR)
-logging.basicConfig(filename=LOG_FILE, level=logging.INFO, 
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_extractor():
@@ -34,19 +34,19 @@ def extract_features(patient_id):
     try:
         patient_dir = os.path.join(DATA_DIR, patient_id)
         phases = ['AP', 'PVP', 'DP']
-        
+
         patient_features = {'MRI_id': patient_id}
         extractor = get_extractor()
-        
+
         has_data = False
         for phase in phases:
             image_path = os.path.join(patient_dir, f"{phase}.nii.gz")
             mask_path = os.path.join(patient_dir, f"{phase}_mask.nii.gz")
-            
+
             if not os.path.exists(image_path) or not os.path.exists(mask_path):
                 logging.error(f"Missing {phase} image or mask for {patient_id}")
                 return None
-                
+
             try:
                 result = extractor.execute(image_path, mask_path)
                 for key, val in result.items():
@@ -56,7 +56,7 @@ def extract_features(patient_id):
             except Exception as e:
                 logging.error(f"Error extracting {phase} for {patient_id}: {e}")
                 return None
-        
+
         if has_data:
             return patient_features
         else:
@@ -70,7 +70,7 @@ def main():
         raise FileNotFoundError(f"Data directory not found: {DATA_DIR}")
 
     patients = [d for d in os.listdir(DATA_DIR) if os.path.isdir(os.path.join(DATA_DIR, d))]
-    
+
     # Check for existing file to resume
     processed_ids = set()
     if os.path.exists(OUTPUT_FILE):
@@ -81,10 +81,10 @@ def main():
                 print(f"Resuming... Found {len(processed_ids)} already processed.")
         except:
             print("Error reading existing file, starting over.")
-            
+
     patients_to_process = [p for p in patients if p not in processed_ids]
     print(f"Found {len(patients)} total. Processing {len(patients_to_process)} remaining with {N_JOBS} cores...")
-    
+
     if not patients_to_process:
         print("All patients processed.")
         return
@@ -94,12 +94,12 @@ def main():
     for i in range(0, len(patients_to_process), chunk_size):
         chunk = patients_to_process[i:i+chunk_size]
         print(f"Processing chunk {i//chunk_size + 1} ({len(chunk)} patients)...")
-        
+
         with multiprocessing.Pool(processes=N_JOBS) as pool:
             results = pool.map(extract_features, chunk)
-        
+
         valid_results = [r for r in results if r is not None]
-        
+
         if valid_results:
             df_chunk = pd.DataFrame(valid_results)
             # Append to CSV
@@ -108,7 +108,7 @@ def main():
             else:
                 df_chunk.to_csv(OUTPUT_FILE, mode='a', header=False, index=False)
             print(f"Saved {len(valid_results)} patients to {OUTPUT_FILE}")
-            
+
     print("Extraction complete.")
 
 if __name__ == '__main__':

@@ -313,5 +313,3 @@ def safe_spearman(a: pd.Series, b: pd.Series) -> float:
         return float(value) if np.isfinite(value) else np.nan
     except Exception:
         return np.nan
-
-

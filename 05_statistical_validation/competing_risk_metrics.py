@@ -177,4 +177,3 @@ def integrated_brier(curve: np.ndarray, horizons: np.ndarray) -> float:
     if len(horizons) < 2:
         raise ValueError("At least two horizons are required for integration")
     return float(np.trapz(curve, horizons) / (horizons[-1] - horizons[0]))
-

@@ -48,5 +48,3 @@ def build_candidates():
 		("3d", "resnet152_3d", cfg_3d.copy()),
 		("3d", "resnet200_3d", cfg_3d.copy()),
 	]
-
-
