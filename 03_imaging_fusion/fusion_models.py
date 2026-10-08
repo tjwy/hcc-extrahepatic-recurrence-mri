@@ -90,7 +90,7 @@ def load_base_dataframe() -> pd.DataFrame:
     base = clinical.merge(split[[ID_COL, "Set"]], on=ID_COL, how="inner")
     for col in CLINICAL_FIXED_7:
         base[col] = pd.to_numeric(base[col], errors="coerce")
-        base[col] = base[col].fillna(base[col].median())
+        # Clinical missingness is handled by the downstream fold-fitted CRM.
     return base
 
 

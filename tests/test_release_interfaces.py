@@ -146,5 +146,7 @@ def test_crm_candidate_selection_uses_internal_oof_only() -> None:
         ]
     )
     selected = crm.select_candidate(summary)
-    assert selected["Model"] == "Coxnet"
-    assert selected["Preprocess"] == "numeric_raw"
+    assert selected["Model"] == "RSF"
+    assert selected["Preprocess"] == "categorical"
+    summary["External_C_Diagnostic"] = [1.0, 0.0]
+    assert crm.select_candidate(summary)["Model"] == "RSF"

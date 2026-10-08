@@ -134,12 +134,12 @@ def c_index_safe(times: np.ndarray, risk: np.ndarray, events: np.ndarray) -> flo
 
 
 def select_candidate(summary: pd.DataFrame) -> pd.Series:
-    """Select the CRM pipeline using development-cohort OOF C-index only."""
-    eligible = summary.dropna(subset=["OOF_C_base_seed"]).copy()
+    """Select by mean repeated-development validation C-index, never external outcomes."""
+    eligible = summary.dropna(subset=["Mean_Val_C", "OOF_C_base_seed"]).copy()
     if eligible.empty:
         raise RuntimeError("No valid CRM candidates were fitted")
     return eligible.sort_values(
-        ["OOF_C_base_seed", "Mean_Val_C", "Preprocess", "Model"],
+        ["Mean_Val_C", "OOF_C_base_seed", "Preprocess", "Model"],
         ascending=[False, False, True, True],
         kind="mergesort",
     ).iloc[0]
@@ -218,7 +218,12 @@ def prepare_crm_tables(input_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     split[ID_COL] = split[ID_COL].astype(str).str.strip()
     clinical = pd.read_excel(CLINICAL_EXCEL)
     clinical[ID_COL] = clinical[ID_COL].astype(str).str.strip()
-    base = clinical.merge(split[[ID_COL, "Set"]], on=ID_COL, how="inner")
+    for frame in (pred, split, clinical):
+        if frame[ID_COL].duplicated().any():
+            raise ValueError("Duplicate patient identifiers in CRM inputs")
+    if "Cohort" not in clinical:
+        clinical["Cohort"] = "Not specified"
+    base = clinical.merge(split[[ID_COL, "Set"]], on=ID_COL, how="inner", validate="one_to_one")
     keep = [ID_COL, "Set", TIME_COL, EVENT_COL, "Cohort"] + CLINICAL_FIXED_7
     base = base[keep].copy()
 
@@ -226,11 +231,14 @@ def prepare_crm_tables(input_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
         base[[ID_COL, "Cohort"] + CLINICAL_FIXED_7],
         on=ID_COL,
         how="inner",
+        validate="one_to_one",
     )
     train = merged[merged["Set"] == "Train_CV"].reset_index(drop=True)
     external = merged[merged["Set"] == "External_Test"].reset_index(drop=True)
-    if len(train) != 732 or len(external) != 227:
-        raise RuntimeError(f"Unexpected Train_CV/External sizes: {len(train)}/{len(external)}")
+    if set(pred[ID_COL]) != set(merged[ID_COL]):
+        raise ValueError("CRM inputs do not cover all prediction patients")
+    if len(train) < 5 or external.empty:
+        raise ValueError("CRM requires development patients and an external partition")
     return train, external
 
 
@@ -326,7 +334,7 @@ def run(args: argparse.Namespace) -> Path:
                     }
                 )
                 pd.DataFrame(rows).sort_values(
-                    ["OOF_C_base_seed", "Mean_Val_C", "Preprocess", "Model"],
+                    ["Mean_Val_C", "OOF_C_base_seed", "Preprocess", "Model"],
                     ascending=[False, False, True, True],
                 ).to_csv(summary_path, index=False)
                 continue
@@ -368,7 +376,7 @@ def run(args: argparse.Namespace) -> Path:
             }
             rows.append(row)
             pd.DataFrame(rows).sort_values(
-                ["OOF_C_base_seed", "Mean_Val_C", "Preprocess", "Model"],
+                ["Mean_Val_C", "OOF_C_base_seed", "Preprocess", "Model"],
                 ascending=[False, False, True, True],
             ).to_csv(summary_path, index=False)
             full_rows.append(
@@ -402,7 +410,7 @@ def run(args: argparse.Namespace) -> Path:
             )
 
     summary = pd.DataFrame(rows).sort_values(
-        ["OOF_C_base_seed", "Mean_Val_C", "Preprocess", "Model"],
+        ["Mean_Val_C", "OOF_C_base_seed", "Preprocess", "Model"],
         ascending=[False, False, True, True],
     )
     summary.to_csv(summary_path, index=False)
@@ -441,7 +449,7 @@ def run(args: argparse.Namespace) -> Path:
         "timestamp": dt.datetime.now().strftime("%F %T"),
         "input_dir": str(args.input_dir),
         "selection_scope": "Train_CV repeated CV; external diagnostic only",
-        "external_set": "v20/227",
+        "external_set": "External_Test",
         "ifm_route": "fixed full4 5mm all4 IFM predictions",
         "crm_features": ["Final_Imaging_Score"] + CLINICAL_FIXED_7,
         "preprocess_preset": args.preprocess_preset,
@@ -455,7 +463,7 @@ def run(args: argparse.Namespace) -> Path:
         "external_n": int(len(external)),
         "train_cv_events": int(train[EVENT_COL].sum()),
         "external_events": int(external[EVENT_COL].sum()),
-        "selection_metric": "development pooled OOF C-index at the prespecified base seed",
+        "selection_metric": "mean validation C-index across repeated development CV",
         "selected_preprocess": str(selected["Preprocess"]),
         "selected_model": str(selected["Model"]),
     }
@@ -471,7 +479,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--repeats", type=int, default=10)
     parser.add_argument("--splits", type=int, default=5)
-    parser.add_argument("--model-preset", choices=sorted(MODEL_PRESETS), default="focused")
+    parser.add_argument("--model-preset", choices=sorted(MODEL_PRESETS), default="all")
     parser.add_argument("--preprocess-preset", choices=sorted(PREPROCESS_PRESETS), default="all")
     return parser.parse_args()
 

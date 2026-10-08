@@ -278,9 +278,9 @@ def process_case(mri_id, case_path, dl_root, rad_root, roi_margin=ROI_MARGIN):
         if img_data is None or mask_data is None:
             return f"Load Fail {seq_name}"
             
-        # Ensure mask uses image affine if shapes match (Fix metadata mismatch)
-        if mask_data.shape == img_data.shape:
-            mask_aff = img_aff
+        # Do not silently overwrite segmentation geometry.
+        if mask_data.shape != img_data.shape or not np.allclose(mask_aff, img_aff, atol=1e-4):
+            return f"Image/mask geometry mismatch {seq_name}"
             
         # Resample
         img_res, img_aff_res = resample_image_volume(img_data, img_aff, is_mask=False)
@@ -375,10 +375,13 @@ def main():
     OUTPUT_RAD = resolve_output_dir(BASE_DIR, args.output_rad_dir, 'data/radiomics_nifti')
     
     if not os.path.exists(LIST_FILE):
-        print(f"List file not found at: {LIST_FILE}")
-        return
+        raise FileNotFoundError(f"List file not found at: {LIST_FILE}")
         
     df = pd.read_csv(LIST_FILE)
+    if not {'MRI_id', 'Path'}.issubset(df.columns):
+        raise ValueError("Processing list requires MRI_id and Path columns")
+    if df['MRI_id'].isna().any() or df['MRI_id'].duplicated().any():
+        raise ValueError("Processing-list identifiers must be present and unique")
     if args.limit is not None:
         df = df.head(args.limit).copy()
     print(f"Loaded {len(df)} cases to process.")
@@ -410,6 +413,7 @@ def main():
         err_df.to_csv(err_file, index=False)
         print(f"Errors saved to {err_file}")
         print(f"Total Errors: {len(err_df)}")
+        raise RuntimeError("Preprocessing failed for one or more cases; see the error report")
     else:
         print("No errors reported!")
 

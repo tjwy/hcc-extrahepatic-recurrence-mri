@@ -11,7 +11,9 @@ raw_mri/<MRI_id>/PVP_mask.nii.gz
 raw_mri/<MRI_id>/DP_mask.nii.gz
 ```
 
-The locked workflow uses the PVP tumor segmentation to define the maximal tumor slice and tumor-centered views. The region of interest is expanded by 5 mm in physical space. AP, PVP, and DP images are spatially aligned and used jointly by the 2D, 2.5D, and 3D branches.
+The locked workflow uses the PVP tumor segmentation to define the maximal tumor slice and tumor-centered views. Each phase is cropped separately with a nominal five-voxel margin after 1-mm isotropic resampling. No interphase registration is performed. The resized AP, PVP, and DP arrays are used jointly by the image branches; equal tensor dimensions do not imply anatomical registration.
+
+`DP` is a legacy input filename. Record the actual contrast agent and acquisition time in your study metadata; a gadoxetate transitional phase is not a conventional extracellular-agent delayed phase.
 
 Radiomics uses the tumor segmentation within the same resampled tumor-plus-5-mm crop and produces columns matching:
 

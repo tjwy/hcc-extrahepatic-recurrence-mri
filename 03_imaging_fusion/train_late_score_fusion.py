@@ -40,6 +40,7 @@ TIME_COL = fusion.TIME_COL
 EVENT_COL = fusion.EVENT_COL
 EXTERNAL_SET = fusion.EXTERNAL_SET
 FOUR_INPUT_FEATURES = fusion.FOUR_INPUT_FEATURES
+CLINICAL_FIXED_7 = fusion.CLINICAL_FIXED_7
 LFM_MODEL_NAMES = fusion.LFM_MODEL_NAMES
 ALLOWED_FUSION_MODELS = {"CoxPH", "RSF", "SVM", "GB", "ExtraST"}
 
@@ -79,7 +80,7 @@ def load_base_dataframe() -> pd.DataFrame:
     base = clinical.merge(split[[ID_COL, "Set"]], on=ID_COL, how="inner")
     for col in CLINICAL_FIXED_7:
         base[col] = pd.to_numeric(base[col], errors="coerce")
-        base[col] = base[col].fillna(base[col].median())
+        # Preserve missingness for downstream training-fold-only imputation.
     return base
 
 
@@ -270,7 +271,7 @@ def run(args: argparse.Namespace) -> Path:
     manifest = {
         "run_tag": tag,
         "checkpoint_policy": "final_epoch_only_for_image_inputs",
-        "selection_metric": "pooled out-of-fold C-index in Train_CV",
+        "selection_metric": "mean validation C-index across repeated development CV",
         "feature_set": FOUR_INPUT_FEATURES,
         "candidate_learners": LFM_MODEL_NAMES,
         "selected_learner": ifm_locked["Model"],

@@ -44,7 +44,8 @@ def extract_features(patient_id):
             mask_path = os.path.join(patient_dir, f"{phase}_mask.nii.gz")
             
             if not os.path.exists(image_path) or not os.path.exists(mask_path):
-                continue
+                logging.error(f"Missing {phase} image or mask for {patient_id}")
+                return None
                 
             try:
                 result = extractor.execute(image_path, mask_path)
@@ -54,6 +55,7 @@ def extract_features(patient_id):
                 has_data = True
             except Exception as e:
                 logging.error(f"Error extracting {phase} for {patient_id}: {e}")
+                return None
         
         if has_data:
             return patient_features
@@ -65,8 +67,7 @@ def extract_features(patient_id):
 
 def main():
     if not os.path.exists(DATA_DIR):
-        print(f"Error: Data directory not found: {DATA_DIR}")
-        return
+        raise FileNotFoundError(f"Data directory not found: {DATA_DIR}")
 
     patients = [d for d in os.listdir(DATA_DIR) if os.path.isdir(os.path.join(DATA_DIR, d))]
     

@@ -94,6 +94,7 @@ class ClinicalPreprocessor:
     cont_mean: dict[str, float] | None = None
     cont_std: dict[str, float] | None = None
     cat_mode: dict[str, object] | None = None
+    cat_levels: dict[str, list[str]] | None = None
     columns: list[str] | None = None
 
     def fit(self, df: pd.DataFrame) -> "ClinicalPreprocessor":
@@ -101,6 +102,7 @@ class ClinicalPreprocessor:
         work["AFP_log1p"] = np.log1p(pd.to_numeric(work["AFP"], errors="coerce").clip(lower=0))
         self.cont_median, self.cont_mean, self.cont_std = {}, {}, {}
         self.cat_mode = {}
+        self.cat_levels = {}
         for col in self.continuous:
             x = pd.to_numeric(work[col], errors="coerce")
             med = float(x.median())
@@ -113,6 +115,7 @@ class ClinicalPreprocessor:
         for col in self.categorical:
             mode = work[col].dropna().mode()
             self.cat_mode[col] = mode.iloc[0] if len(mode) else "Missing"
+            self.cat_levels[col] = sorted(work[col].fillna(self.cat_mode[col]).map(norm_id).unique())
         X = self.transform(df, fitting=True)
         self.columns = X.columns.tolist()
         return self
@@ -127,7 +130,10 @@ class ClinicalPreprocessor:
             parts.append(z.rename(col))
         cat_frame = pd.DataFrame(index=work.index)
         for col in self.categorical:
-            cat_frame[col] = work[col].fillna(self.cat_mode[col]).astype(str)
+            values = work[col].fillna(self.cat_mode[col]).map(norm_id)
+            if not set(values).issubset(self.cat_levels[col]):
+                raise ValueError(f"Unknown category in {col}")
+            cat_frame[col] = pd.Categorical(values, categories=self.cat_levels[col])
         dummies = pd.get_dummies(cat_frame, columns=list(self.categorical), drop_first=True, dtype=float)
         X = pd.concat(parts + [dummies], axis=1)
         if not fitting:
@@ -197,6 +203,8 @@ def load_analysis_table() -> pd.DataFrame:
     split = pd.read_csv(SPLIT_PATH)
     for frame in (pred, clin, split):
         frame["MRI_id_norm"] = frame["MRI_id"].map(norm_id)
+        if frame["MRI_id_norm"].duplicated().any():
+            raise ValueError("Duplicate patient identifiers in an input table")
     clin_cols = [
         "MRI_id_norm",
         "Age",
@@ -206,13 +214,13 @@ def load_analysis_table() -> pd.DataFrame:
         "BCLC",
         "Tumor_Size",
         "Tumor_Number",
-        "RFS_Months",
-        "Recurrence_status",
         "OS_Months",
         "OS_Status",
     ]
     merged = pred.merge(clin[clin_cols], on="MRI_id_norm", how="left", validate="one_to_one")
-    merged = merged.merge(split[["MRI_id_norm", "Fold"]], on="MRI_id_norm", how="left")
+    merged = merged.merge(split[["MRI_id_norm", "Fold"]], on="MRI_id_norm", how="left", validate="one_to_one")
+    if "Cohort" not in merged:
+        merged["Cohort"] = merged["Set"]
     missing = merged[["Age", "AFP", "BCLC", "Fold"]].isna().sum().to_dict()
     if missing["Age"] > 0:
         raise RuntimeError(f"Clinical merge has unexpected missing Age values: {missing}")

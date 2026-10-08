@@ -1,4 +1,4 @@
 column,type,allowed_values,description
 MRI_id,string,de-identified key,joins to the clinical table
-Set,string,Train_CV|External_Test|Adjuvant_Test,analysis partition
+Set,string,Train_CV|External_Test,analysis partition
 Fold,integer,0|1|2|3|4,fixed development-fold assignment; blank outside Train_CV

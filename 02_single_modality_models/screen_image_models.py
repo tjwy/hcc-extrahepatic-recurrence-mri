@@ -31,7 +31,7 @@ ID_COL = "MRI_id"
 BATCH_SIZE_OVERRIDES = {
     ("2d", "resnet50"): 24,
     ("2d", "vgg16_bn"): 24,
-    ("2d", "vgg19_bn"): 24,
+    ("2d", "vgg19_bn"): 8,
     ("2d", "densenet121"): 24,
     ("2d", "densenet169"): 24,
     ("2d", "efficientnet_b0"): 24,
@@ -44,7 +44,7 @@ BATCH_SIZE_OVERRIDES = {
     ("2p5d", "densenet169"): 24,
     ("2p5d", "efficientnet_b0"): 24,
     ("2p5d", "efficientnet_b1"): 24,
-    ("2p5d", "mobilenet_v2"): 24,
+    ("2p5d", "mobilenet_v2"): 4,
     ("3d", "resnet10_3d"): 2,
     ("3d", "resnet18_3d"): 2,
     ("3d", "resnet34_3d"): 2,

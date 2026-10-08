@@ -1,0 +1,7 @@
+-r requirements.txt
+PyRadiomics==3.0.1
+PyWavelets==1.8.0
+PyYAML==6.0.2
+pykwalify==1.8.0
+ruamel.yaml==0.18.6
+docopt==0.6.2

@@ -17,3 +17,10 @@ checkpoints/
 __pycache__/
 .pytest_cache/
 .mplconfig/
+.venv/
+venv/
+*.log
+*.zip
+*.tar
+*.onnx
+*.safetensors

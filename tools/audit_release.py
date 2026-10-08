@@ -3,19 +3,23 @@
 
 from __future__ import annotations
 
+import argparse
+import ast
 import csv
 import hashlib
+import re
+import subprocess
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "RELEASE_FILE_MANIFEST.csv"
 AUDITOR = Path(__file__).resolve()
-TRANSIENT_DIRS = {".git", "__pycache__", ".pytest_cache", ".mplconfig"}
+TRANSIENT_DIRS = {".git", "__pycache__", ".pytest_cache", ".mplconfig", ".venv", "venv"}
 TEXT_SUFFIXES = {".py", ".R", ".md", ".txt", ".csv", ".yaml", ".yml", ".env"}
 FORBIDDEN_SUFFIXES = {
     ".dcm", ".nii", ".gz", ".xlsx", ".xls", ".npy", ".npz",
-    ".pth", ".pt", ".pkl", ".joblib", ".h5", ".hdf5",
+    ".pth", ".pt", ".pkl", ".joblib", ".h5", ".hdf5", ".onnx", ".safetensors", ".pdf", ".zip",
 }
 FORBIDDEN_PATH_TERMS = {
     "Analysis_Phase", "GUT", "gut_style", "resplit", "method_lock",
@@ -28,6 +32,12 @@ FORBIDDEN_TEXT = {
     "final_model_data_v": "restricted source filename",
     "@tjh.tjmu.edu.cn": "personal or institutional email",
     "TJ-IRB": "nonblinded ethics identifier",
+    "C:\\Users\\": "local personal path",
+}
+SENSITIVE_PATTERNS = {
+    r"\bTCGA-[A-Z0-9]{2}-[A-Z0-9]{4}\b": "patient-level TCGA identifier",
+    r"\bgh[pousr]_[A-Za-z0-9]{20,}\b": "GitHub credential",
+    r"-----BEGIN .*PRIVATE KEY-----": "private key",
 }
 
 
@@ -49,21 +59,71 @@ def release_files() -> list[Path]:
     )
 
 
+def text_blockers(text: str, relative: str) -> list[str]:
+    found = []
+    for needle, label in FORBIDDEN_TEXT.items():
+        if needle in text:
+            found.append(f"{label} in {relative}")
+    for pattern, label in SENSITIVE_PATTERNS.items():
+        if re.search(pattern, text):
+            found.append(f"{label} in {relative}")
+    return found
+
+
+def history_blockers() -> list[str]:
+    result = subprocess.run(["git", "rev-list", "--objects", "--all"], cwd=ROOT,
+                            capture_output=True, text=True, check=True)
+    found = []
+    for record in result.stdout.splitlines():
+        parts = record.split(" ", 1)
+        if len(parts) != 2 or not parts[1]:
+            continue
+        oid, name = parts
+        kind = subprocess.check_output(["git", "cat-file", "-t", oid], cwd=ROOT, text=True).strip()
+        if kind != "blob":
+            continue
+        if Path(name).suffix.lower() in FORBIDDEN_SUFFIXES:
+            found.append(f"restricted binary in Git history: {name}")
+        if Path(name).suffix.lower() in TEXT_SUFFIXES and name != "tools/audit_release.py":
+            content = subprocess.check_output(["git", "cat-file", "-p", oid], cwd=ROOT)
+            found.extend(text_blockers(content.decode("utf-8", errors="replace"), "history:" + name))
+    return found
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--write-manifest", action="store_true")
+    parser.add_argument("--check-history", action="store_true")
+    args = parser.parse_args()
     blockers: list[str] = []
     files = release_files()
     for path in files:
         relative = path.relative_to(ROOT).as_posix()
         if path.suffix.lower() in FORBIDDEN_SUFFIXES:
             blockers.append(f"forbidden binary file: {relative}")
+        if path.suffix.lower() == ".csv" and not relative.startswith("schemas/"):
+            blockers.append(f"unexpected CSV outside input schemas: {relative}")
         for term in FORBIDDEN_PATH_TERMS:
             if term.lower() in relative.lower():
                 blockers.append(f"historical or plotting path term '{term}': {relative}")
         if path.suffix in TEXT_SUFFIXES and path != AUDITOR:
             text = path.read_text(encoding="utf-8", errors="ignore")
-            for needle, label in FORBIDDEN_TEXT.items():
-                if needle in text:
-                    blockers.append(f"{label} in {relative}")
+            blockers.extend(text_blockers(text, relative))
+            if path.suffix == ".py":
+                try:
+                    ast.parse(text, filename=relative)
+                except SyntaxError as exc:
+                    blockers.append(f"Python syntax error in {relative}: {exc.msg}")
+
+    if args.check_history:
+        blockers.extend(history_blockers())
+    if args.write_manifest and not blockers:
+        with MANIFEST.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["release_relative_path", "bytes", "sha256"], lineterminator="\n")
+            writer.writeheader()
+            for path in files:
+                writer.writerow({"release_relative_path": path.relative_to(ROOT).as_posix(),
+                                 "bytes": path.stat().st_size, "sha256": sha256(path)})
 
     if not MANIFEST.exists():
         blockers.append("missing RELEASE_FILE_MANIFEST.csv")

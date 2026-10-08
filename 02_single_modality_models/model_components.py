@@ -167,6 +167,9 @@ def seed_worker(worker_id):
 
 
 def build_loader(dataset, batch_size, shuffle, num_workers, seed, drop_last=False):
+    # The mask-aware dataset is installed dynamically; Windows spawn cannot pickle it.
+    if os.name == "nt":
+        num_workers = 0
     generator = torch.Generator()
     generator.manual_seed(int(seed))
     return DataLoader(
@@ -220,54 +223,20 @@ def _load_torch_checkpoint_safely(path):
 def load_pretrained_state_once(backbone):
     if backbone in TV_STATE_CACHE:
         return TV_STATE_CACHE[backbone]
-
     url = TV_PRETRAIN_URLS.get(backbone)
     if url is None:
-        TV_STATE_CACHE[backbone] = None
-        return None
-
-    fname = os.path.basename(url)
-    cached = ensure_local_pretrain_file(fname)
+        raise ValueError(f"No initialization source for {backbone}")
+    cached = ensure_local_pretrain_file(os.path.basename(url))
     if not os.path.exists(cached):
-        print(f"[{ts()}] No local pretrained cache for {backbone} at {cached}; using random init.")
-        TV_STATE_CACHE[backbone] = None
-        return None
-
-    state, err = _load_torch_checkpoint_safely(cached)
-    if err is None:
-        TV_STATE_CACHE[backbone] = state
-        print(f"[{ts()}] Loaded local pretrained {backbone} from {cached}")
-        return state
-
-    print(f"[{ts()}] Warning: failed to read local pretrained {backbone} ({cached}): {err}. The file might be corrupted.")
-    try:
-        os.remove(cached)
-        print(f"[{ts()}] Removed corrupted cache for {backbone}: {cached}")
-    except Exception as remove_err:
-        print(f"[{ts()}] Warning: failed to remove corrupted cache for {backbone}: {remove_err}")
-        TV_STATE_CACHE[backbone] = None
-        return None
-
-    try:
-        torch.hub.load_state_dict_from_url(url, model_dir=PRETRAIN_DIR, map_location="cpu", progress=True)
-    except Exception as e:
-        try:
-            urllib.request.urlretrieve(url, cached)
-            print(f"[{ts()}] Re-downloaded pretrained cache for {backbone} via urllib fallback")
-        except Exception as e2:
-            print(f"[{ts()}] Warning: failed to refresh {backbone} cache after corruption: {e}; fallback failed: {e2}")
-            TV_STATE_CACHE[backbone] = None
-            return None
-
-    state, err = _load_torch_checkpoint_safely(cached)
-    if err is None:
-        TV_STATE_CACHE[backbone] = state
-        print(f"[{ts()}] Refreshed and loaded local pretrained {backbone} from {cached}")
-        return state
-
-    print(f"[{ts()}] Warning: refreshed cache for {backbone} is still unreadable: {err}")
-    TV_STATE_CACHE[backbone] = None
-    return None
+        raise FileNotFoundError(
+            f"ImageNet initialization missing for {backbone}. "
+            "Obtain the licensed initialization weights before training."
+        )
+    state, error = _load_torch_checkpoint_safely(cached)
+    if error is not None:
+        raise RuntimeError(f"Unreadable initialization for {backbone}; the cache was not deleted") from error
+    TV_STATE_CACHE[backbone] = state
+    return state
 
 
 def ensure_imagenet_cache(backbones):
@@ -307,8 +276,7 @@ def ensure_imagenet_cache(backbones):
 
 def load_med3d_weights(backbone_module, weight_path, backbone_name):
     if not os.path.exists(weight_path):
-        print(f"[{ts()}] MED3D weights not found for {backbone_name}: {weight_path}; using random init.")
-        return
+        raise FileNotFoundError(f"Licensed Med3D initialization is required for {backbone_name}: {weight_path}")
 
     try:
         state = torch.load(weight_path, map_location="cpu")
@@ -325,7 +293,7 @@ def load_med3d_weights(backbone_module, weight_path, backbone_name):
         missing, unexpected = backbone_module.load_state_dict(filtered, strict=False)
         print(f"[{ts()}] Loaded MED3D for {backbone_name}: {weight_path} | missing={len(missing)} unexpected={len(unexpected)}")
     except Exception as e:
-        print(f"[{ts()}] Warning: failed loading MED3D for {backbone_name} from {weight_path}: {e}")
+        raise RuntimeError(f"Could not load Med3D initialization for {backbone_name}") from e
 
 
 def resolve_med3d_weight_path(backbone_name):
