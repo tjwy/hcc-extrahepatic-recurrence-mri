@@ -1,61 +1,53 @@
-# Verification scope
+# Tests and implementation notes
 
-## Local checks
+## Test coverage
 
-The release candidate was checked in an isolated Windows Python 3.11 environment
-using the pinned base dependencies and PyTorch 2.6.0 / torchvision 0.21.0 CPU builds.
-The local suite completed with **43 tests passed and 1 skipped** on 2026-10-08;
-the skipped test is PyRadiomics extraction. The synthetic workflow and `pip check`
-also passed. Linux CI results should be read from the repository Actions page.
+Tests cover MRI preprocessing, model input construction, survival-model
+interfaces, clinical-variable preprocessing, competing-risk metrics, and a
+synthetic branch-score to IFM/CRM workflow. They do not reproduce the study's
+numerical results without the study data and model checkpoints.
 
-On 2026-10-14, the local suite was rerun after recurrence-terminology updates:
-42 tests passed and 2 were skipped. The skipped checks were the optional
-Rscript/Gray-test interface and PyRadiomics extraction, which were unavailable
-in that local process. This rerun did not use private patient data or retrain
-the study models.
+The Windows check on 2026-10-14 completed with 42 tests passed and 2 skipped.
+The skipped checks required Rscript and PyRadiomics, which were unavailable in
+that process. Linux checks are reported under the repository's Actions tab.
 
-Checks cover:
+## Optional dependencies
 
-- Synthetic MRI preprocessing and explicit rejection of image/mask geometry mismatch.
-- 3-channel 2D, 9-channel 2.5D, and 3-channel 3D input construction.
-- Forward passes of the selected VGG19-BN, MobileNetV2, and 3D ResNet10 architectures.
-- Finite Cox-loss gradients; interface tests use explicit random initialization only.
-- Development-only imputation, fixed categorical encoding, and preservation of missingness.
-- OOF feature provenance and internal-only learner selection.
-- Cause-specific Cox CIF mapping, Aalen-Johansen state probabilities, competing-death controls,
-  IPCW AUC/Brier calculations, and normalized monthly trapezoidal IBS integration.
-- Gray-test execution using R 4.4.1 and cmprsk 2.2.12, including a one-group edge case.
-- A 120-subject synthetic branch-score -> IFM -> CRM -> statistical validation workflow.
-- Python syntax, dependency checks, source-file hashes, and sensitive-content scanning of Git history.
-
-## Platform limitations
-
-Installing PyRadiomics 3.0.1 from source in the isolated Windows environment
-requires Microsoft C++ Build Tools, which were not installed as part of this review.
-Its extraction test is skipped locally rather than reported as passed.
-The optional Linux CI job installs a C-compiler-capable runtime and tests extraction
-of all 107 Original features per phase, as well as rejecting incomplete phases.
-
-For a source install, first install the base requirements and wheel, then:
+PyRadiomics 3.0.1 may require a C compiler for installation. After installing
+the base requirements, use:
 
 ```bash
 python -m pip install wheel==0.45.1
 python -m pip install --no-build-isolation -r requirements-radiomics.txt
 ```
 
-A failed installation is an environment/dependency failure, not evidence that
-feature extraction executed successfully. No system-wide compiler or packages
-were installed or modified by these checks.
+The Gray-test script requires R with `cmprsk`. Tests that require unavailable
+optional dependencies are reported as skipped.
 
-## What passing tests does not establish
+ImageNet and Med3D initialization weights are obtained separately from their
+original sources. Set `MR_PRETRAIN_DIR` to the local weights directory.
 
-No private patient data, original images, manuscript weights, or full 50-epoch
-training runs were used. These checks are not strict numerical replication of
-the reported C-indexes, AUCs, confidence intervals, or RNA-seq results.
-Release software differs from historical training software. The frozen study
-inputs and models remain necessary for exact study-output reproduction.
+## Implementation notes
 
-This candidate removes obsolete three-year 20% risk grouping and sparse-horizon
-Brier scripts. The current exploratory cutoff policy and competing-risk IBS
-implementation are documented separately from net-risk sensitivity analyses.
-Interface corrections do not update the frozen manuscript results or clinical records.
+- MRI crops use a nominal 5-mm margin after 1-mm isotropic resampling, without
+  interphase registration. Radiomics uses 107 Original features per phase.
+- Image-model selection uses final-epoch development OOF C-index. External
+  branch scores average predictions from the five fold-specific models.
+- Fusion and CRM reuse upstream OOF scores without refitting the upstream
+  models within each fusion-validation split. This is not fully nested
+  end-to-end cross-validation.
+- Early-feature fusion follows the original checkpoint-specific folds. Late-score
+  learner selection uses repeated five-fold validation on fixed OOF scores;
+  the two approaches use different patient partitions.
+- The primary probability layer combines cause-specific Cox models for EHR and
+  competing death. IPCW Brier scores are integrated over monthly horizons from
+  1 to 36 months. Development probability mappings are not fully cross-fitted.
+- Calibration and decision curves from `evaluate_model_performance.py` are
+  net-risk sensitivity analyses that treat competing death as censoring.
+- Exploratory risk groups use model-specific development OOF 86th-percentile
+  cutoffs, applied unchanged externally. The cutoff choice was informed by
+  previously examined external subgroup results and is not an independently
+  validated clinical decision threshold.
+
+Patient data, medical images, model weights, transcriptomic analyses, and
+manuscript figure-generation scripts are not distributed in this package.
