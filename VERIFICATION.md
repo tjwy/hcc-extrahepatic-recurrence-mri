@@ -8,6 +8,12 @@ The local suite completed with **43 tests passed and 1 skipped** on 2026-10-08;
 the skipped test is PyRadiomics extraction. The synthetic workflow and `pip check`
 also passed. Linux CI results should be read from the repository Actions page.
 
+On 2026-10-14, the local suite was rerun after recurrence-terminology updates:
+42 tests passed and 2 were skipped. The skipped checks were the optional
+Rscript/Gray-test interface and PyRadiomics extraction, which were unavailable
+in that local process. This rerun did not use private patient data or retrain
+the study models.
+
 Checks cover:
 
 - Synthetic MRI preprocessing and explicit rejection of image/mask geometry mismatch.

@@ -1,5 +1,7 @@
 # Multiphase MRI-based prediction of extrahepatic recurrence after HCC resection
 
+Repository: https://github.com/tjwy/hcc-extrahepatic-recurrence-mri
+
 Minimal research code for MRI preprocessing, single-modality survival models,
 imaging fusion (IFM), clinical-radiologic modeling (CRM), and statistical validation.
 The endpoint is **extrahepatic recurrence (EHR)**, regardless of preceding or
@@ -89,6 +91,10 @@ features; it cannot run against the publication weights because those are not pr
   scores average the five fold models. Model selection does not use external outcomes.
 - Fusion and CRM reuse upstream OOF scores; these stages are not fully nested
   end-to-end cross-validation. Preprocessing statistics must be fitted on training data only.
+- Early-feature fusion uses the original development folds associated with its
+  fold-specific deep-learning checkpoints. Late-score learner selection repeats
+  five-fold validation on fixed upstream OOF scores. These patient partitions
+  must not be described as identical without a separately verified matched-fold comparison.
 - The primary probability layer combines cause-specific Cox models for EHR
   and competing death. Monthly IPCW Brier scores are integrated over months 1-36.
   A three-horizon arithmetic mean is not an integrated Brier score.

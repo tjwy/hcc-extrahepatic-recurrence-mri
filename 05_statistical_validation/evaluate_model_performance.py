@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Statistical validation of locked distant-metastasis predictions.
+"""Statistical validation of locked extrahepatic-recurrence predictions.
 
-The script evaluates the locked distant-metastasis endpoint predictions:
+The script evaluates the locked extrahepatic-recurrence endpoint predictions:
 IFM, CRM, clinical-only, and BCLC-only.
 """
 
@@ -442,7 +442,7 @@ def plot_calibration(calib: pd.DataFrame) -> None:
                 ax.set_xlabel("Predicted DM risk")
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=4, bbox_to_anchor=(0.5, -0.02))
-    fig.suptitle("Calibration of absolute distant-metastasis risk", y=1.0, fontsize=9)
+    fig.suptitle("Calibration of extrahepatic recurrence net risk", y=1.0, fontsize=9)
     fig.tight_layout(rect=(0, 0.06, 1, 0.98))
     fig.savefig(OUTDIR / "calibration_curves_train_external_1y2y3y.png", dpi=600, bbox_inches="tight")
     fig.savefig(OUTDIR / "calibration_curves_train_external_1y2y3y.pdf", bbox_inches="tight")
@@ -467,7 +467,7 @@ def plot_dca(dca: pd.DataFrame) -> None:
     axes[0].set_ylabel("Net benefit")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=6, bbox_to_anchor=(0.5, -0.08))
-    fig.suptitle("Decision curve analysis for distant-metastasis risk", y=1.02, fontsize=9)
+    fig.suptitle("Decision curve analysis for extrahepatic recurrence net risk", y=1.02, fontsize=9)
     fig.tight_layout(rect=(0, 0.10, 1, 0.98))
     fig.savefig(OUTDIR / "decision_curve_external_1y2y3y.png", dpi=600, bbox_inches="tight")
     fig.savefig(OUTDIR / "decision_curve_external_1y2y3y.pdf", bbox_inches="tight")
@@ -642,13 +642,13 @@ def write_readme(ci: pd.DataFrame, diffs: pd.DataFrame, subgroup: pd.DataFrame) 
         "",
         "## Analysis scope",
         "",
-        "- Endpoint: distant metastasis, using `Time_to_DM_Months` and `Distant_Metastasis`.",
+        "- Endpoint: extrahepatic recurrence (EHR), using the legacy-compatible `Time_to_DM_Months` and `Distant_Metastasis` columns.",
         "- Locked models are not reselected here: IFM uses the locked late-score ExtraST risk; CRM uses the locked Coxnet CRM risk.",
         "- Train_CV uses out-of-fold risks where available; External_Test uses full-fit risks.",
         "- Clinical-only baseline: fixed seven-variable CoxPH model with Age, log1p(AFP), Tumor_Size, and one-hot Sex/Child-Pugh/BCLC/Tumor_Number.",
         "- BCLC baseline: single-variable BCLC CoxPH model.",
         "- Bootstrap CIs use patient-level resampling with 1000 iterations.",
-        "- Calibration and DCA use Cox calibration from Train_CV risk scores to 1-, 2-, and 3-year absolute distant-metastasis risks.",
+        "- Calibration and DCA use Cox calibration from Train_CV risk scores to 1-, 2-, and 3-year EHR net risks, treating competing death as censoring.",
         "",
         "## Main external result",
         "",
